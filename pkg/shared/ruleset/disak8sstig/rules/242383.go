@@ -69,7 +69,6 @@ func (s SelectResource) Validate() field.ErrorList {
 	allErrs = append(allErrs, metav1validation.ValidateLabels(s.NamespaceMatchLabels, rootPath.Child("namespaceMatchLabels"))...)
 
 	return allErrs
-
 }
 
 type Options242383 struct {
