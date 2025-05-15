@@ -41,7 +41,7 @@
       "matchStrings": [
           "^TAILWINDCSS_VERSION \?= (?<current-value>?)$",
           "tailwindcss (?<current-value>?)",
-        ],
+        ]
     }
   ],
   "packageRules": [
