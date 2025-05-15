@@ -37,8 +37,8 @@
     },
     {
       // Generic detection for tailwind dependency
-      "fileMatch": "^(_styles\.tpl|output\.css|tools\.mk)$"
       "customType": "regex",
+      "fileMatch": ["^(_styles\.tpl|output\.css|tools\.mk)$"],
       "matchStrings": [
           "^TAILWINDCSS_VERSION \?= (?<current-value>?)$",
           "tailwindcss (?<current-value>?)",
