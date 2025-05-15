@@ -41,7 +41,9 @@
       "matchStrings": [
           "^TAILWINDCSS_VERSION \?= (?<current-value>?)$",
           "tailwindcss (?<current-value>?)",
-        ]
+      ],
+      "depNameTemplate": "tailwindlabs/tailwindcss",
+      "datasourceTemplate": "github-releases",
     }
   ],
   "packageRules": [
