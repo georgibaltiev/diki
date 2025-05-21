@@ -45,7 +45,7 @@
       ],
       "matchStrings": [
           "tailwindcss (?<currentValue>v[0-9]+(\.[0-9]+){2})",
-          "TAILWINDCSS_VERSION \?= (?<currentValue>v[0-9]+(\.[0-9]+){2})"
+          "TAILWINDCSS_VERSION \\?= (?<currentValue>v[0-9]+(\.[0-9]+){2})"
       ],
       "depNameTemplate": "tailwindlabs/tailwindcss",
       "datasourceTemplate": "github-releases",
