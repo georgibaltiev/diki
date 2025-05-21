@@ -5,7 +5,7 @@
 TAILWINDCSS                := $(TOOLS_BIN_DIR)/tailwindcss
 
 # default tool versions
-TAILWINDCSS_VERSION ?= v3.4.17
+TAILWINDCSS_VERSION ?= v4.1.7
 
 #########################################
 # Tools                                 #
