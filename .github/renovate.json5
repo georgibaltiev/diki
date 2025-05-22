@@ -12,7 +12,7 @@
   "allowedPostUpgradeCommands": ["make gen-styles"],
   "postUpgradeTasks": {
     "commands": ["make gen-styles"],
-    "fileFilters": ["^hack\/tools\.mk$"],
+    "fileFilters": ["^hack\/tools\.mk$", "^pkg\/report\/templates\/html\/_styles\.tpl$", "^pkg\/report\/templates\/html\/output\.css$"],
     "executionMode": "update"
   },
   "customManagers": [
