@@ -34,6 +34,18 @@
       ],
       "depNameTemplate": "containerd/nerdctl",
       "datasourceTemplate": "github-releases"
+    },
+    {
+      // Generic detection for tailwindcss dependency in GitHub
+      "customType": "regex",
+      "fileMatch": [
+        "^hack\/tools\.mk$",
+      ],
+      "matchStrings": [
+          "TAILWINDCSS_VERSION \\?= (?<currentValue>.*)"
+      ],
+      "depNameTemplate": "tailwindlabs/tailwindcss",
+      "datasourceTemplate": "github-releases",
     }
   ],
   "packageRules": [
