@@ -43,7 +43,7 @@ tidy:
 
 .PHONY: gen-styles
 gen-styles: $(TAILWINDCSS)
-	@./hack/gen-styles.sh
+	@hack/gen-styles.sh
 
 .PHONY: generate
 generate:
