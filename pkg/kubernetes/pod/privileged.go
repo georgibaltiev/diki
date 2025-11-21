@@ -98,3 +98,62 @@ func NewPrivilegedPod(name, namespace, image, nodeName string, additionalLabels 
 		return pod
 	}
 }
+
+// NewGardenlinuxTestPod creates a new privileged Pod.
+func NewGardenlinuxTestPod(name, namespace, image, nodeName string, additionalLabels map[string]string) func() *corev1.Pod {
+	if len(name) > maxNameLength {
+		name = name[:maxNameLength]
+	}
+
+	labels := map[string]string{}
+	if additionalLabels != nil {
+		labels = maps.Clone(additionalLabels)
+	}
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels:    labels,
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  "test-ng-container",
+					Image: image,
+					SecurityContext: &corev1.SecurityContext{
+						Privileged: ptr.To(true),
+						SeccompProfile: &corev1.SeccompProfile{
+							Type: "RuntimeDefault",
+						},
+					},
+				},
+			},
+			EnableServiceLinks: ptr.To(true),
+			HostNetwork:        true,
+			HostPID:            true,
+			RestartPolicy:      "Never",
+			Tolerations: []corev1.Toleration{
+				{
+					Effect:   "NoSchedule",
+					Operator: "Exists",
+				},
+				{
+					Effect:   "NoExecute",
+					Operator: "Exists",
+				},
+			},
+		},
+	}
+
+	if nodeName != "" {
+		pod.Spec.NodeSelector = map[string]string{"kubernetes.io/hostname": nodeName}
+	}
+
+	// Labels that will always be applied to the pod and cannot be overwritten
+	pod.Labels[LabelComplianceRoleKey] = LabelComplianceRolePrivPod
+
+	return func() *corev1.Pod {
+		return pod
+	}
+}
