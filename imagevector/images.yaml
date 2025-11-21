@@ -8,5 +8,6 @@ images:
   sourceRepository: github.com/gardener/diki
   repository: europe-docker.pkg.dev/gardener-project/releases/gardener/diki-ops
 - name: test-ng
-  sourceRepository: /github.com/gardenlinux/gardenlinux
-  repository: github.com/gardenlinux/gardenlinux/pkgs/container/test-ng
+  sourceRepository: github.com/gardenlinux/gardenlinux/tests-ng
+  repository: ghcr.io/gardenlinux/test-ng
+  tag: nightly
