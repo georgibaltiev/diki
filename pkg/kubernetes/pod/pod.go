@@ -274,3 +274,35 @@ func (spc *SimplePodContext) waitPodDeleted(ctx context.Context, name, namespace
 		return retry.MinorError(fmt.Errorf("pod %s is not yet deleted", client.ObjectKeyFromObject(pod).String()))
 	})
 }
+
+// WaitPodCompleted waits for a Pod to get a completed status.
+func (spc *SimplePodContext) WaitPodCompleted(ctx context.Context, name, namespace string) error {
+	timeoutCtx, cancel := context.WithTimeout(ctx, spc.WaitTimeout)
+	defer cancel()
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+
+	return retry.Until(timeoutCtx, spc.WaitInterval, func(ctx context.Context) (done bool, err error) {
+		if err := spc.client.Get(ctx, client.ObjectKeyFromObject(pod), pod); err != nil {
+			if apierrors.IsNotFound(err) {
+				return retry.SevereError(fmt.Errorf("pod %s not found", client.ObjectKeyFromObject(pod).String()))
+			}
+			return retry.SevereError(err)
+		}
+
+		if pod.Status.Phase == corev1.PodSucceeded {
+			return retry.Ok()
+		}
+
+		if pod.Status.Phase == corev1.PodFailed {
+			return retry.SevereError(fmt.Errorf("pod %s has failed", client.ObjectKeyFromObject(pod).String()))
+		}
+
+		return retry.MinorError(fmt.Errorf("pod %s is not yet completed, current phase: %s", client.ObjectKeyFromObject(pod).String(), pod.Status.Phase))
+	})
+}

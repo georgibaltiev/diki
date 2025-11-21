@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"os"
 	"path/filepath"
@@ -28,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -708,6 +710,37 @@ func GetNodesAllocatablePodsNum(pods []corev1.Pod, nodes []corev1.Node) map[stri
 	}
 
 	return nodesAllocatablePods
+}
+
+// GetPodLogs returns the log output of a specific pod as a string.
+func GetPodLogs(ctx context.Context, config *rest.Config, podName, namespace string) (string, error) {
+	var err error
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return "", fmt.Errorf("failed to create clientset: %w", err)
+	}
+
+	_, err = clientset.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to get pod %s in namespace %s: %w", podName, namespace, err)
+	}
+
+	logOptions := &corev1.PodLogOptions{}
+
+	logRequest := clientset.CoreV1().Pods(namespace).GetLogs(podName, logOptions)
+	logStream, err := logRequest.Stream(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get log stream for pod %s in namespace %s: %w", podName, namespace, err)
+	}
+	defer logStream.Close()
+
+	logBytes, err := io.ReadAll(logStream)
+	if err != nil {
+		return "", fmt.Errorf("failed to read logs for pod %s in namespace %s: %w", podName, namespace, err)
+	}
+
+	return string(logBytes), nil
 }
 
 // SelectNodes returns a subset of nodes. Containing
