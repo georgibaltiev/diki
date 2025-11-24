@@ -12,33 +12,36 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gardener/diki/imagevector"
-	"github.com/gardener/diki/pkg/config"
-	"github.com/gardener/diki/pkg/kubernetes/pod"
-	"github.com/gardener/diki/pkg/rule"
-	"github.com/gardener/diki/pkg/ruleset"
-	"github.com/gardener/diki/pkg/shared/images"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/gardener/diki/imagevector"
+	"github.com/gardener/diki/pkg/config"
+	"github.com/gardener/diki/pkg/kubernetes/pod"
 	kubeutils "github.com/gardener/diki/pkg/kubernetes/utils"
+	"github.com/gardener/diki/pkg/rule"
+	"github.com/gardener/diki/pkg/ruleset"
+	"github.com/gardener/diki/pkg/shared/images"
 	sharedrules "github.com/gardener/diki/pkg/shared/ruleset/disak8sstig/rules"
 )
 
 const (
-	// RulesetID is a constant containing the id of the Security Hardened Kubernetes Cluster Ruleset.
+	// RulesetID is a constant containing the id of the Gardenlinux Ruleset.
 	RulesetID = "gardenlinux"
-	// RulesetName is a constant containing the user-friendly name of the Security Hardened Kubernetes ruleset.
+	// RulesetName is a constant containing the user-friendly name of the Gardenlinux ruleset.
 	RulesetName = "Gardenlinux Ruleset"
 )
 
 var (
-	_                 ruleset.Ruleset = &Ruleset{}
-	SupportedVersions                 = []string{"alpha"}
+	_ ruleset.Ruleset = &Ruleset{}
+	// SupportedVersions is a list of available versions for the Gardenlinux Ruleset.
+	// Versions are sorted from newest to oldest.
+	SupportedVersions = []string{"alpha"}
 )
 
+// Ruleset implements Gardelinux ruleset.
 type Ruleset struct {
 	version           string
 	Config            *rest.Config
@@ -48,18 +51,22 @@ type Ruleset struct {
 	args              Args
 }
 
+// Args are Ruleset specific arguments.
 type Args struct {
 	NodeGroupByLabels []string `json:"nodeGroupByLabels" yaml:"nodeGroupByLabels"`
 }
 
+// ID returns the id of the Ruleset.
 func (r *Ruleset) ID() string {
 	return RulesetID
 }
 
+// Name returns the name of the Ruleset.
 func (r *Ruleset) Name() string {
 	return RulesetName
 }
 
+// Version returns the version of the Ruleset.
 func (r *Ruleset) Version() string {
 	return r.version
 }
@@ -88,7 +95,7 @@ func New(options ...CreateOption) (*Ruleset, error) {
 }
 
 // FromGenericConfig creates a Ruleset from a RulesetConfig
-func FromGenericConfig(rulesetConfig config.RulesetConfig, managedConfig *rest.Config, fldPath *field.Path) (*Ruleset, error) {
+func FromGenericConfig(rulesetConfig config.RulesetConfig, managedConfig *rest.Config, _ *field.Path) (*Ruleset, error) {
 	rulesetArgsByte, err := json.Marshal(rulesetConfig.Args)
 	if err != nil {
 		return nil, err
@@ -110,6 +117,7 @@ func FromGenericConfig(rulesetConfig config.RulesetConfig, managedConfig *rest.C
 	return ruleset, nil
 }
 
+// Run executes the tests-ng containers and collects the test results.
 func (r *Ruleset) Run(ctx context.Context) (ruleset.RulesetResult, error) {
 	image, err := imagevector.ImageVector().FindImage(images.TestsNgImageName)
 	if err != nil {
@@ -157,7 +165,10 @@ func (r *Ruleset) Run(ctx context.Context) (ruleset.RulesetResult, error) {
 			}
 
 			// here i dont do error checking, since it is expected behaviour for the test-ng pod to error when there are failings
-			r.ClusterPodContext.WaitPodCompleted(ctx, podName, systemNamespace)
+			err = r.ClusterPodContext.WaitPodCompleted(ctx, podName, systemNamespace)
+			if err != nil {
+				r.logger.Log(ctx, slog.LevelInfo, "pod has errored")
+			}
 
 			logs, err := kubeutils.GetPodLogs(ctx, r.Config, podName, systemNamespace)
 			if err != nil {
@@ -194,7 +205,7 @@ func (r *Ruleset) Run(ctx context.Context) (ruleset.RulesetResult, error) {
 	}, nil
 }
 
-// for now, we will not be able to run a specific rule, since the implementation is stored externally
+// RunRule currently is not able to run a specific rule, since the implementation of the check is maintained externally
 func (r *Ruleset) RunRule(_ context.Context, _ string) (rule.RuleResult, error) {
 	return rule.RuleResult{}, fmt.Errorf("ruleset gardenlinux does not support running rules individually")
 }

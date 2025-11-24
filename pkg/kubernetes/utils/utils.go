@@ -733,11 +733,15 @@ func GetPodLogs(ctx context.Context, config *rest.Config, podName, namespace str
 	if err != nil {
 		return "", fmt.Errorf("failed to get log stream for pod %s in namespace %s: %w", podName, namespace, err)
 	}
-	defer logStream.Close()
 
 	logBytes, err := io.ReadAll(logStream)
 	if err != nil {
 		return "", fmt.Errorf("failed to read logs for pod %s in namespace %s: %w", podName, namespace, err)
+	}
+
+	err = logStream.Close()
+	if err != nil {
+		return "", fmt.Errorf("failed to close log stream for pod %s in namespace %s: %w", podName, namespace, err)
 	}
 
 	return string(logBytes), nil

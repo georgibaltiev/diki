@@ -35,6 +35,7 @@ func WithLogger(logger *slog.Logger) CreateOption {
 	}
 }
 
+// WithArgs sets the args of a [Ruleset].
 func WithArgs(args Args) CreateOption {
 	return func(r *Ruleset) {
 		if len(args.NodeGroupByLabels) > 0 {
