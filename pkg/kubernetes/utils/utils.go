@@ -713,7 +713,7 @@ func GetNodesAllocatablePodsNum(pods []corev1.Pod, nodes []corev1.Node) map[stri
 }
 
 // GetPodLogs returns the log output of a specific pod as a string.
-func GetPodLogs(ctx context.Context, config *rest.Config, podName, namespace string) (string, error) {
+func GetPodLogs(ctx context.Context, config *rest.Config, podName, namespace string, container ...string) (string, error) {
 	var err error
 
 	clientset, err := kubernetes.NewForConfig(config)
@@ -727,6 +727,9 @@ func GetPodLogs(ctx context.Context, config *rest.Config, podName, namespace str
 	}
 
 	logOptions := &corev1.PodLogOptions{}
+	if len(container) == 1 {
+		logOptions.Container = container[0]
+	}
 
 	logRequest := clientset.CoreV1().Pods(namespace).GetLogs(podName, logOptions)
 	logStream, err := logRequest.Stream(ctx)
