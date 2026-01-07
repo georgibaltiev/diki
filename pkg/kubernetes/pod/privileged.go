@@ -8,6 +8,7 @@ import (
 	"maps"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )
@@ -117,9 +118,9 @@ func NewGardenlinuxTestPod(name, namespace, image, nodeName string, additionalLa
 			Labels:    labels,
 		},
 		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
+			InitContainers: []corev1.Container{
 				{
-					Name:  "test-ng-container",
+					Name:  "test-ng",
 					Image: image,
 					SecurityContext: &corev1.SecurityContext{
 						Privileged: ptr.To(true),
@@ -127,12 +128,43 @@ func NewGardenlinuxTestPod(name, namespace, image, nodeName string, additionalLa
 							Type: "RuntimeDefault",
 						},
 					},
+					Args: []string{
+						"./run_tests",
+						"--junit-xml",
+						"output/test-ng.xml",
+						"--system-booted",
+						"--expected-users",
+						"gardener",
+					},
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name:      "test-report",
+							MountPath: "/tests-ng/tests/output",
+						},
+					},
+				},
+			},
+			Containers: []corev1.Container{
+				{
+					Name:    "sidecar",
+					Image:   "alpine:latest",
+					Command: []string{"/bin/sh"},
+					Args: []string{
+						"-c",
+						"cat /tests-ng/tests/output/test-ng.xml",
+					},
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name:      "test-report",
+							MountPath: "/tests-ng/tests/output",
+						},
+					},
 				},
 			},
 			EnableServiceLinks: ptr.To(true),
 			HostNetwork:        true,
 			HostPID:            true,
-			RestartPolicy:      "Never",
+			RestartPolicy:      corev1.RestartPolicyOnFailure,
 			Tolerations: []corev1.Toleration{
 				{
 					Effect:   "NoSchedule",
@@ -141,6 +173,16 @@ func NewGardenlinuxTestPod(name, namespace, image, nodeName string, additionalLa
 				{
 					Effect:   "NoExecute",
 					Operator: "Exists",
+				},
+			},
+			Volumes: []corev1.Volume{
+				{
+					Name: "test-report",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{
+							SizeLimit: resource.NewScaledQuantity(100, resource.Kilo),
+						},
+					},
 				},
 			},
 		},
