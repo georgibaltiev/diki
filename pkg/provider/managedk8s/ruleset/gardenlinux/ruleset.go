@@ -170,7 +170,7 @@ func (r *Ruleset) Run(ctx context.Context) (ruleset.RulesetResult, error) {
 				r.logger.Log(ctx, slog.LevelInfo, err.Error())
 			}
 
-			logs, err := kubeutils.GetPodLogs(ctx, r.Config, podName, systemNamespace)
+			logs, err := kubeutils.GetPodLogs(ctx, r.Config, podName, systemNamespace, "sidecar")
 			if err != nil {
 				chResultChan <- rule.ErroredCheckResult(err.Error(), rule.NewTarget())
 				return
