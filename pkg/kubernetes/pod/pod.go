@@ -72,6 +72,17 @@ func NewSimplePodContext(client client.Client, config *rest.Config, additionalPo
 	}, nil
 }
 
+// NewSimplePodContext creates a new SimplePodContext with adjusted WaitInterval value to accomodate for the long running time of the initContainer.
+func NewGardenlinuxPodContext(client client.Client, config *rest.Config, additionalPodLabels map[string]string) (*SimplePodContext, error) {
+	return &SimplePodContext{
+		client:              client,
+		config:              config,
+		AdditionalPodLabels: additionalPodLabels,
+		WaitInterval:        2 * time.Second,
+		WaitTimeout:         5 * time.Minute,
+	}, nil
+}
+
 // Create creates a Pod and waits for it to get in Running state.
 func (spc *SimplePodContext) Create(ctx context.Context, podConstructorFn func() *corev1.Pod) (PodExecutor, error) {
 	pod := podConstructorFn()

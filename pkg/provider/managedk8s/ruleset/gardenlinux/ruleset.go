@@ -85,7 +85,7 @@ func New(options ...CreateOption) (*Ruleset, error) {
 	}
 	r.Client = c
 
-	podContext, err := pod.NewSimplePodContext(r.Client, r.Config, nil)
+	podContext, err := pod.NewGardenlinuxPodContext(r.Client, r.Config, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func (r *Ruleset) Run(ctx context.Context) (ruleset.RulesetResult, error) {
 			// here i dont do error checking, since it is expected behaviour for the test-ng pod to error when there are failings
 			err = r.ClusterPodContext.WaitPodCompleted(ctx, podName, systemNamespace)
 			if err != nil {
-				r.logger.Log(ctx, slog.LevelInfo, "pod has errored")
+				r.logger.Log(ctx, slog.LevelInfo, err.Error())
 			}
 
 			logs, err := kubeutils.GetPodLogs(ctx, r.Config, podName, systemNamespace)
