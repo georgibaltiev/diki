@@ -101,7 +101,7 @@ func NewPrivilegedPod(name, namespace, image, nodeName string, additionalLabels 
 }
 
 // NewGardenlinuxTestPod creates a new privileged Pod.
-func NewGardenlinuxTestPod(name, namespace, image, nodeName string, additionalLabels map[string]string) func() *corev1.Pod {
+func NewGardenlinuxTestPod(name, namespace, testImage, dikiImage, nodeName string, additionalLabels map[string]string) func() *corev1.Pod {
 	if len(name) > maxNameLength {
 		name = name[:maxNameLength]
 	}
@@ -120,8 +120,8 @@ func NewGardenlinuxTestPod(name, namespace, image, nodeName string, additionalLa
 		Spec: corev1.PodSpec{
 			InitContainers: []corev1.Container{
 				{
-					Name:  "test-ng",
-					Image: image,
+					Name:  "junit-container",
+					Image: testImage,
 					SecurityContext: &corev1.SecurityContext{
 						Privileged: ptr.To(true),
 						SeccompProfile: &corev1.SeccompProfile{
@@ -146,12 +146,13 @@ func NewGardenlinuxTestPod(name, namespace, image, nodeName string, additionalLa
 			},
 			Containers: []corev1.Container{
 				{
-					Name:    "sidecar",
-					Image:   "alpine:latest",
-					Command: []string{"/bin/sh"},
+					Name:  "container",
+					Image: "alpine:latest",
+					Command: []string{
+						"/bin/sh",
+					},
 					Args: []string{
-						"-c",
-						"cat /tests-ng/tests/output/test-ng.xml",
+						"-c", "sleep 300",
 					},
 					VolumeMounts: []corev1.VolumeMount{
 						{
@@ -164,7 +165,7 @@ func NewGardenlinuxTestPod(name, namespace, image, nodeName string, additionalLa
 			EnableServiceLinks: ptr.To(true),
 			HostNetwork:        true,
 			HostPID:            true,
-			RestartPolicy:      corev1.RestartPolicyOnFailure,
+			RestartPolicy:      corev1.RestartPolicyNever,
 			Tolerations: []corev1.Toleration{
 				{
 					Effect:   "NoSchedule",
