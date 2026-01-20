@@ -79,7 +79,7 @@ func NewGardenlinuxPodContext(client client.Client, config *rest.Config, additio
 		config:              config,
 		AdditionalPodLabels: additionalPodLabels,
 		WaitInterval:        2 * time.Second,
-		WaitTimeout:         5 * time.Minute,
+		WaitTimeout:         10 * time.Minute,
 	}, nil
 }
 
@@ -162,8 +162,6 @@ func (spe *SimplePodExecutor) Execute(ctx context.Context, command string, comma
 		Param("stderr", "true").
 		Param("tty", "false")
 
-	// Use a fallback executor with websocket as primary and spdy as fallback similar to kubectl.
-	// https://github.com/kubernetes/kubectl/blob/2e38fc220409bbc92f8270c49612f0f9d8e36c89/pkg/cmd/exec/exec.go#L143-L155
 	websocketExecutor, err := remotecommand.NewWebSocketExecutor(spe.config, http.MethodGet, request.URL().String())
 	if err != nil {
 		return "", fmt.Errorf("failed to initialize the websocket executor: %w", err)
@@ -286,8 +284,8 @@ func (spc *SimplePodContext) waitPodDeleted(ctx context.Context, name, namespace
 	})
 }
 
-// WaitPodCompleted waits for a Pod to get a completed status.
-func (spc *SimplePodContext) WaitPodCompleted(ctx context.Context, name, namespace string) error {
+// WaitPodRunning waits for a Pod to get a running status.
+func (spc *SimplePodContext) WaitPodRunning(ctx context.Context, name, namespace string) error {
 	timeoutCtx, cancel := context.WithTimeout(ctx, spc.WaitTimeout)
 	defer cancel()
 
@@ -306,7 +304,7 @@ func (spc *SimplePodContext) WaitPodCompleted(ctx context.Context, name, namespa
 			return retry.SevereError(err)
 		}
 
-		if pod.Status.Phase == corev1.PodSucceeded {
+		if pod.Status.Phase == corev1.PodRunning {
 			return retry.Ok()
 		}
 
