@@ -101,7 +101,7 @@ func NewPrivilegedPod(name, namespace, image, nodeName string, additionalLabels 
 }
 
 // NewGardenlinuxTestPod creates a new privileged Pod.
-func NewGardenlinuxTestPod(name, namespace, testImage, dikiImage, nodeName string, additionalLabels map[string]string) func() *corev1.Pod {
+func NewGardenlinuxTestPod(name, namespace, testImage, nodeName string, additionalLabels map[string]string) func() *corev1.Pod {
 	if len(name) > maxNameLength {
 		name = name[:maxNameLength]
 	}

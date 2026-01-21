@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-	"time"
 
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -21,6 +20,7 @@ import (
 	"github.com/gardener/diki/pkg/config"
 	"github.com/gardener/diki/pkg/kubernetes/pod"
 	kubeutils "github.com/gardener/diki/pkg/kubernetes/utils"
+	"github.com/gardener/diki/pkg/provider/managedk8s/ruleset/gardenlinux/utils"
 	"github.com/gardener/diki/pkg/rule"
 	"github.com/gardener/diki/pkg/ruleset"
 	"github.com/gardener/diki/pkg/shared/images"
@@ -119,7 +119,7 @@ func FromGenericConfig(rulesetConfig config.RulesetConfig, managedConfig *rest.C
 
 // Run executes the tests-ng containers and collects the test results.
 func (r *Ruleset) Run(ctx context.Context) (ruleset.RulesetResult, error) {
-	image, err := imagevector.ImageVector().FindImage(images.TestsNgImageName)
+	testImage, err := imagevector.ImageVector().FindImage(images.TestsNgImageName)
 	if err != nil {
 		return ruleset.RulesetResult{}, fmt.Errorf("failed to find image version for %s: %w", images.TestsNgImageName, err)
 	}
@@ -135,22 +135,22 @@ func (r *Ruleset) Run(ctx context.Context) (ruleset.RulesetResult, error) {
 	}
 
 	nodesAllocatablePods := kubeutils.GetNodesAllocatablePodsNum(allClusterPods, nodes)
-
-	selectedNodes, checkResults := kubeutils.SelectNodes(nodes, nodesAllocatablePods, r.args.NodeGroupByLabels)
+	selectedNodes, _ := kubeutils.SelectNodes(nodes, nodesAllocatablePods, r.args.NodeGroupByLabels)
 
 	const systemNamespace = "kube-system"
 
 	wg := sync.WaitGroup{}
-	chResultChan := make(chan (rule.CheckResult))
+	rsChan := make(chan (ruleset.RulesetResult))
 
 	for _, node := range selectedNodes {
+		n := node
 		wg.Add(1)
 		go func() {
 			var podName = fmt.Sprintf("test-ng-%s-%s", r.ID(), sharedrules.Generator.Generate(10))
 
 			defer func() {
 				wg.Done()
-				timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+				timeoutCtx, cancel := context.WithTimeout(context.Background(), r.ClusterPodContext.WaitTimeout)
 				defer cancel()
 
 				if err := r.ClusterPodContext.Delete(timeoutCtx, podName, systemNamespace); err != nil {
@@ -158,51 +158,47 @@ func (r *Ruleset) Run(ctx context.Context) (ruleset.RulesetResult, error) {
 				}
 			}()
 
-			_, err := r.ClusterPodContext.Create(ctx, pod.NewGardenlinuxTestPod(podName, systemNamespace, image.String(), node.Name, nil))
-			if err != nil {
-				chResultChan <- rule.ErroredCheckResult(err.Error(), rule.NewTarget())
-				return
-			}
-
-			// here i dont do error checking, since it is expected behaviour for the test-ng pod to error when there are failings
-			err = r.ClusterPodContext.WaitPodCompleted(ctx, podName, systemNamespace)
+			podExecutor, err := r.ClusterPodContext.Create(ctx, pod.NewGardenlinuxTestPod(podName, systemNamespace, testImage.String(), n.Name, nil))
 			if err != nil {
 				r.logger.Log(ctx, slog.LevelInfo, err.Error())
-			}
-
-			logs, err := kubeutils.GetPodLogs(ctx, r.Config, podName, systemNamespace, "sidecar")
-			if err != nil {
-				chResultChan <- rule.ErroredCheckResult(err.Error(), rule.NewTarget())
 				return
 			}
 
-			// here we actually have to perform the parsing
-			fmt.Print(logs)
+			err = r.ClusterPodContext.WaitPodRunning(ctx, podName, systemNamespace)
+			if err != nil {
+				r.logger.Error(err.Error())
+				return
+			}
 
-			chResultChan <- rule.PassedCheckResult("Passed", rule.NewTarget())
+			reportSlice, err := podExecutor.Execute(ctx, "/bin/sh", "cat /tests-ng/tests/output/test-ng.xml")
+			if err != nil {
+				r.logger.Error(err.Error())
+				return
+			}
+
+			rulesetResult, err := utils.ParseTestNGReport(reportSlice)
+			if err != nil {
+				r.logger.Error(err.Error())
+				return
+			}
+
+			rsChan <- rulesetResult
 		}()
 	}
 
 	go func() {
 		wg.Wait()
-		close(chResultChan)
+		close(rsChan)
 	}()
 
-	for checkResult := range chResultChan {
-		checkResults = append(checkResults, checkResult)
+	var rulesetResults []ruleset.RulesetResult
+
+	for rulesetResult := range rsChan {
+		rulesetResults = append(rulesetResults, rulesetResult)
 	}
 
-	return ruleset.RulesetResult{
-		RulesetID:      RulesetID,
-		RulesetVersion: r.version,
-		RulesetName:    RulesetName,
-		RuleResults: []rule.RuleResult{
-			{
-				RuleID:       "1000",
-				CheckResults: checkResults,
-			},
-		},
-	}, nil
+	mergedRulesetResult := utils.MergeRulesetResults(rulesetResults)
+	return mergedRulesetResult, nil
 }
 
 // RunRule currently is not able to run a specific rule, since the implementation of the check is maintained externally
